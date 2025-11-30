@@ -34,21 +34,23 @@ export default {
 async function addTemperatureRecord(request, env) {
     try {
         const data = await request.json();
-        const { room_id, temperature } = data;
+        const { room_id, temperature, humidity } = data;
         if (!room_id || temperature === undefined) {
             return new Response('Bad Request: Missing room_id or temperature', { status: 400 });
         }
+        const humidityValue = humidity !== undefined ? parseFloat(humidity) : null;
 
         const stmt = await env.DB.prepare(
-            'INSERT INTO temperature (room_id, temperature) VALUES (?, ?)'
+            'INSERT INTO temperature (room_id, temperature, humidity) VALUES (?, ?, ?)'
         );
-        await stmt.bind(room_id, parseFloat(temperature)).run();
+        await stmt.bind(room_id, parseFloat(temperature), humidityValue).run();
 
         return new Response(JSON.stringify({ success: true }), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        return new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 });
+        console.error(error);
+        return new Response(JSON.stringify({ error: 'Invalid JSON or Database Error' }), { status: 400 });
     }
 }
 
@@ -85,7 +87,7 @@ async function getTemperatureData(request, env) {
     }
 
     let query = `
-      SELECT room_id, temperature, recorded_at
+      SELECT room_id, temperature, humidity, recorded_at
       FROM temperature
       ${whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : ''}
       ORDER BY recorded_at ASC

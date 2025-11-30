@@ -10,12 +10,10 @@
         margin: 40px;
       }
 
-      /* Center the text content */
       h1, p {
         text-align: center;
       }
 
-      /* Center the filter controls using Flexbox */
       .filters {
         display: flex;
         justify-content: center; /* Center horizontally */
@@ -27,14 +25,14 @@
 
       .chart-container {
         max-width: 800px;
-        margin: 0 auto; /* This already centers the chart container */
+        margin: 0 auto;
       }
     </style>
-    <title>Hello, Bird!</title>
+    <title>Birdcage Status</title>
   </head>
   <body>
-    <h1 id="heading"></h1>
-    <p>This is the status page of my birdcage.</p>
+    <h1 id="heading">Birdcage Monitor</h1>
+    <p>Status of temperature and humidity.</p>
     <div class="filters">
       <label>Select Date:
         <input type="date" id="dateFilter">
@@ -42,7 +40,7 @@
       <label>Room:
         <select id="roomFilter">
           <option value="">All Rooms</option>
-          <option value=1>Room 1</option>
+          <option value="1">Room 1</option>
         </select>
       </label>
       <button onclick="loadTemperatureData()">Query</button>
@@ -51,10 +49,11 @@
     <div class="chart-container">
       <canvas id="temperatureChart"></canvas>
     </div>
-    <script>
+  <script>
 let chartInstance = null;
+
 async function loadTemperatureData() {
-  const dateFilter = document.getElementById('dateFilter').value; // value is "YYYY-MM-DD"
+  const dateFilter = document.getElementById('dateFilter').value;
   const roomFilter = document.getElementById('roomFilter').value;
 
   let url = '/temp';
@@ -63,15 +62,10 @@ async function loadTemperatureData() {
   if (roomFilter) params.append('room_id', roomFilter);
 
   if (dateFilter) {
-    // 1. Create a Date object for 00:00:00 LOCAL time on that date
-    // Appending 'T00:00:00' ensures the browser parses it as local time
     const startDate = new Date(dateFilter + 'T00:00:00');
-
-    // 2. Create a Date object for 00:00:00 LOCAL time on the NEXT day
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + 1);
 
-    // 3. Convert both to UTC ISO strings (e.g., 2025-11-29T16:00:00.000Z)
     params.append('start_time', startDate.toISOString());
     params.append('end_time', endDate.toISOString());
   }
@@ -85,13 +79,12 @@ async function loadTemperatureData() {
     const result = await response.json();
 
     if (result.success) {
-      // Check for empty data
       if (result.data.length === 0) {
           alert("No data found for this period.");
       }
       renderChart(result.data);
     } else {
-      alert(result.error);
+      alert(result.error || "Unknown error occurred");
     }
   } catch (error) {
     console.error(error);
@@ -111,46 +104,102 @@ function renderChart(data) {
     if (!rooms[record.room_id]) {
       rooms[record.room_id] = [];
     }
+
+    // Fix: Treat database string as UTC so it converts to browser Local Time
+    // e.g. "2023-11-30 12:00:00" -> "2023-11-30T12:00:00Z"
+    const dateObj = new Date(record.recorded_at.replace(" ", "T") + "Z");
+
     rooms[record.room_id].push({
-      time: new Date(record.recorded_at).toLocaleTimeString(),
-      temperature: record.temperature
+      time: dateObj.toLocaleTimeString(),
+      temperature: record.temperature,
+      humidity: record.humidity
     });
   });
 
   const ctx = document.getElementById('temperatureChart').getContext('2d');
 
-  // 2. CHECK AND DESTROY EXISTING CHART
   if (chartInstance) {
     chartInstance.destroy();
   }
 
-  // 3. Assign the new chart to the global variable
+  // DEFINING COLOR PAIRS (Temp Color vs Humidity Color)
+  // Room 1: Red (Temp) & Blue (Humidity)
+  // Room 2: Orange (Temp) & Teal (Humidity)
+  // Room 3: Purple (Temp) & Green (Humidity)
+  const colorPalette = [
+    { temp: 'rgb(255, 99, 132)',  humid: 'rgb(54, 162, 235)' }, // Red / Blue
+    { temp: 'rgb(255, 159, 64)',  humid: 'rgb(75, 192, 192)' }, // Orange / Teal
+    { temp: 'rgb(153, 102, 255)', humid: 'rgb(46, 204, 113)' }, // Purple / Green
+  ];
+
+  const datasets = [];
+
+  Object.keys(rooms).forEach((roomId, index) => {
+    const roomData = rooms[roomId];
+
+    // Pick a style pair based on index (cycles if you have many rooms)
+    const style = colorPalette[index % colorPalette.length];
+
+    // 1. Temperature Dataset (Warm Color, Solid Line)
+    datasets.push({
+      label: `Room ${roomId} Temp`,
+      data: roomData.map(r => ({x: r.time, y: r.temperature})),
+      borderColor: style.temp,      // Set Temp color
+      backgroundColor: style.temp,
+      tension: 0.1,
+      yAxisID: 'y',
+    });
+
+    // 2. Humidity Dataset (Cool Color, Dashed Line)
+    datasets.push({
+      label: `Room ${roomId} Humidity`,
+      data: roomData.map(r => ({x: r.time, y: r.humidity})),
+      borderColor: style.humid,     // Set Humidity color
+      backgroundColor: style.humid,
+      borderDash: [5, 5],           // Dashed line
+      tension: 0.1,
+      yAxisID: 'y1',
+      pointStyle: 'rect'
+    });
+  });
+
   chartInstance = new Chart(ctx, {
     type: 'line',
     data: {
-      datasets: Object.keys(rooms).map((roomId, index) => {
-        const roomData = rooms[roomId];
-        // Optional: Add different colors for different rooms
-        const colors = ['green', 'blue', 'red', 'orange'];
-
-        return {
-          label: 'Room ' + roomId,
-          data: roomData.map(r => ({x: r.time, y: r.temperature})),
-          borderColor: colors[index % colors.length] || 'green', // Cycle colors
-          tension: 0.1
-        };
-      })
+      datasets: datasets
     },
     options: {
+      responsive: true,
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
       scales: {
-        x: { type: 'category', title: { display: true, text: 'Time' } },
-        y: { title: { display: true, text: 'Temperature (°C)' } }
+        x: {
+          type: 'category',
+          title: { display: true, text: 'Time' }
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: { display: true, text: 'Temperature (°C)' }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: { display: true, text: 'Humidity (%)' },
+          grid: {
+            drawOnChartArea: false,
+          },
+        }
       }
     }
   });
 }
 
 loadTemperatureData();
-    </script>
+  </script>
   </body>
 </html>
