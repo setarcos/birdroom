@@ -25,6 +25,8 @@ export default {
                 return addTemperatureRecord(request, env);
             case '/temp':
                 return getTemperatureData(request, env);
+            case '/rooms':
+                return getRoomList(request, env);
             default:
                 return new Response('Not Found', { status: 404 });
         }
@@ -117,4 +119,13 @@ async function getTemperatureData(request, env) {
       details: error.message
     }), { status: 500 });
   }
+}
+
+async function getRoomList(request, env) {
+    try {
+        const { results } = await env.DB.prepare('SELECT id, name FROM rooms').all();
+        return Response.json(results);
+    } catch (e) {
+        return new Response(e.message, { status: 500 });
+    }
 }

@@ -51,6 +51,31 @@
     </div>
   <script>
 let chartInstance = null;
+let roomMap = {};
+
+async function loadRooms() {
+  try {
+    const response = await fetch('/rooms');
+    if (!response.ok) throw new Error('Failed to fetch rooms');
+
+    const rooms = await response.json();
+    rooms.forEach(r => { roomMap[r.id] = r.name; });
+    const select = document.getElementById('roomFilter');
+
+    // Reset to just the default option
+    select.innerHTML = '<option value="">All Rooms</option>';
+
+    rooms.forEach(room => {
+      const option = document.createElement('option');
+      option.value = room.id;       // The value sent to the backend
+      option.textContent = room.name; // The text shown to the user
+      select.appendChild(option);
+    });
+
+  } catch (error) {
+    console.error("Error loading room list:", error);
+  }
+}
 
 async function loadTemperatureData() {
   const dateFilter = document.getElementById('dateFilter').value;
@@ -141,8 +166,9 @@ function renderChart(data) {
     const style = colorPalette[index % colorPalette.length];
 
     // 1. Temperature Dataset (Warm Color, Solid Line)
+    const labelName = roomMap[roomId] || `Room ${roomId}`;
     datasets.push({
-      label: `Room ${roomId} Temp`,
+      label: `${labelName} Temp`,
       data: roomData.map(r => ({x: r.time, y: r.temperature})),
       borderColor: style.temp,      // Set Temp color
       backgroundColor: style.temp,
@@ -152,11 +178,10 @@ function renderChart(data) {
 
     // 2. Humidity Dataset (Cool Color, Dashed Line)
     datasets.push({
-      label: `Room ${roomId} Humidity`,
+      label: `${labelName} Humidity`,
       data: roomData.map(r => ({x: r.time, y: r.humidity})),
       borderColor: style.humid,     // Set Humidity color
       backgroundColor: style.humid,
-      borderDash: [5, 5],           // Dashed line
       tension: 0.1,
       yAxisID: 'y1',
       pointStyle: 'rect'
@@ -199,6 +224,7 @@ function renderChart(data) {
   });
 }
 
+loadRooms();
 loadTemperatureData();
   </script>
   </body>

@@ -6,4 +6,9 @@ CREATE TABLE temperature (
     recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE rooms (
+    id INTEGER NOT NULL,
+    name TEXT NOT NULL
+);
+
 CREATE INDEX idx_recorded_at ON temperature (recorded_at);
