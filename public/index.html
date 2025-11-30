@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 40px;
+      }
+
+      /* Center the text content */
+      h1, p {
+        text-align: center;
+      }
+
+      /* Center the filter controls using Flexbox */
+      .filters {
+        display: flex;
+        justify-content: center; /* Center horizontally */
+        align-items: center;     /* Align vertically */
+        gap: 15px;               /* Add space between inputs and buttons */
+        margin: 20px 0;          /* Add spacing above and below the bar */
+        flex-wrap: wrap;         /* Allow items to wrap on small screens */
+      }
+
+      .chart-container {
+        max-width: 800px;
+        margin: 0 auto; /* This already centers the chart container */
+      }
+    </style>
+    <title>Hello, Bird!</title>
+  </head>
+  <body>
+    <h1 id="heading"></h1>
+    <p>This is the status page of my birdcage.</p>
+    <div class="filters">
+      <label>Select Date:
+        <input type="date" id="dateFilter">
+      </label>
+      <label>Room:
+        <select id="roomFilter">
+          <option value="">All Rooms</option>
+          <option value=1>Room 1</option>
+        </select>
+      </label>
+      <button onclick="loadTemperatureData()">Query</button>
+      <button onclick="resetFilters()">Reset</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="temperatureChart"></canvas>
+    </div>
+    <script>
+let chartInstance = null;
+async function loadTemperatureData() {
+  const dateFilter = document.getElementById('dateFilter').value; // value is "YYYY-MM-DD"
+  const roomFilter = document.getElementById('roomFilter').value;
+
+  let url = '/temp';
+  const params = new URLSearchParams();
+
+  if (roomFilter) params.append('room_id', roomFilter);
+
+  if (dateFilter) {
+    // 1. Create a Date object for 00:00:00 LOCAL time on that date
+    // Appending 'T00:00:00' ensures the browser parses it as local time
+    const startDate = new Date(dateFilter + 'T00:00:00');
+
+    // 2. Create a Date object for 00:00:00 LOCAL time on the NEXT day
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+
+    // 3. Convert both to UTC ISO strings (e.g., 2025-11-29T16:00:00.000Z)
+    params.append('start_time', startDate.toISOString());
+    params.append('end_time', endDate.toISOString());
+  }
+
+  if (params.toString()) {
+    url += '?' + params.toString();
+  }
+
+  try {
+    const response = await fetch(url);
+    const result = await response.json();
+
+    if (result.success) {
+      // Check for empty data
+      if (result.data.length === 0) {
+          alert("No data found for this period.");
+      }
+      renderChart(result.data);
+    } else {
+      alert(result.error);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function resetFilters() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dateFilter').value = today;
+  document.getElementById('roomFilter').value = '';
+  loadTemperatureData();
+}
+
+function renderChart(data) {
+  const rooms = {};
+  data.forEach(record => {
+    if (!rooms[record.room_id]) {
+      rooms[record.room_id] = [];
+    }
+    rooms[record.room_id].push({
+      time: new Date(record.recorded_at).toLocaleTimeString(),
+      temperature: record.temperature
+    });
+  });
+
+  const ctx = document.getElementById('temperatureChart').getContext('2d');
+
+  // 2. CHECK AND DESTROY EXISTING CHART
+  if (chartInstance) {
+    chartInstance.destroy();
+  }
+
+  // 3. Assign the new chart to the global variable
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: Object.keys(rooms).map((roomId, index) => {
+        const roomData = rooms[roomId];
+        // Optional: Add different colors for different rooms
+        const colors = ['green', 'blue', 'red', 'orange'];
+
+        return {
+          label: 'Room ' + roomId,
+          data: roomData.map(r => ({x: r.time, y: r.temperature})),
+          borderColor: colors[index % colors.length] || 'green', // Cycle colors
+          tension: 0.1
+        };
+      })
+    },
+    options: {
+      scales: {
+        x: { type: 'category', title: { display: true, text: 'Time' } },
+        y: { title: { display: true, text: 'Temperature (°C)' } }
+      }
+    }
+  });
+}
+
+loadTemperatureData();
+    </script>
+  </body>
+</html>
