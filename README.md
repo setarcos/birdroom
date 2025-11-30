@@ -32,3 +32,12 @@ A serverless IoT application built with **Cloudflare Workers** and **D1 (SQLite)
 git clone https://github.com/setarcos/birdroom.git
 cd birdroom
 npm install
+```
+
+### 2. Delopy to Cloudflare
+```bash
+npm run deploy
+npx wrangler d1 create temperature
+npx wrangler d1 execute temperature --file=temperature.sql --remote
+npx wrangler secret put BIRD_API_KEY
+```

@@ -3,6 +3,7 @@
  * 3. run `npx wrangler d1 execute temperature --file=temperature.sql --remote`
  *    to update the remote database.
  * 4. run `npm run deploy` to upload this application.
+ * 5. run `npx wrangler secret put BIRD_API_KEY` to upload a secret.
  */
 export default {
     async fetch(request, env, ctx) {
@@ -11,7 +12,7 @@ export default {
         if (url.pathname.startsWith('/op')) {
             const apiKey = request.headers.get('x-api-key')
 
-            if (!apiKey || apiKey !== env.ARCH_API_KEY) {
+            if (!apiKey || apiKey !== env.BIRD_API_KEY) {
                 return new Response('Unauthorized', { status: 401 })
             }
             if (request.method != 'POST') {
