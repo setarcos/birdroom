@@ -8,19 +8,27 @@
 export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
+        let urlpath = url.pathname;
 
-        if (url.pathname.startsWith('/op')) {
-            const apiKey = request.headers.get('x-api-key')
-
-            if (!apiKey || apiKey !== env.BIRD_API_KEY) {
-                return new Response('Unauthorized', { status: 401 })
-            }
-            if (request.method != 'POST') {
-                return new Response('Method Not Allowed', { status: 405 })
+        if (urlpath.startsWith('/birdroom')) {
+            urlpath = urlpath.substring('/birdroom'.length); // remove '/rooms' prefix
+            if (urlpath === '') {
+                urlpath = '/';
             }
         }
 
-        switch (url.pathname) {
+        if (urlpath.startsWith('/op')) {
+            const apiKey = request.headers.get('x-api-key');
+
+            if (!apiKey || apiKey !== env.BIRD_API_KEY) {
+                return new Response('Unauthorized', { status: 401 });
+            }
+            if (request.method != 'POST') {
+                return new Response('Method Not Allowed', { status: 405 });
+            }
+        }
+
+        switch (urlpath) {
             case '/op/add':
                 return addTemperatureRecord(request, env);
             case '/temp':

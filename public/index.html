@@ -53,7 +53,7 @@ let roomMap = {};
 
 async function loadRooms() {
   try {
-    const response = await fetch('/rooms');
+    const response = await fetch('rooms');
     if (!response.ok) throw new Error('Failed to fetch rooms');
 
     const rooms = await response.json();
@@ -79,7 +79,7 @@ async function loadTemperatureData() {
   const dateFilter = document.getElementById('dateFilter').value;
   const roomFilter = document.getElementById('roomFilter').value;
 
-  let url = '/temp';
+  let url = 'temp';
   const params = new URLSearchParams();
 
   if (roomFilter) params.append('room_id', roomFilter);
@@ -128,7 +128,7 @@ function renderChart(data) {
       rooms[record.room_id] = [];
     }
 
-    // Fix: Treat database string as UTC so it converts to browser Local Time
+    // Treat database string as UTC so it converts to browser Local Time
     // e.g. "2023-11-30 12:00:00" -> "2023-11-30T12:00:00Z"
     const dateObj = new Date(record.recorded_at.replace(" ", "T") + "Z");
 
@@ -145,10 +145,6 @@ function renderChart(data) {
     chartInstance.destroy();
   }
 
-  // DEFINING COLOR PAIRS (Temp Color vs Humidity Color)
-  // Room 1: Red (Temp) & Blue (Humidity)
-  // Room 2: Orange (Temp) & Teal (Humidity)
-  // Room 3: Purple (Temp) & Green (Humidity)
   const colorPalette = [
     { temp: 'rgb(255, 99, 132)',  humid: 'rgb(54, 162, 235)' }, // Red / Blue
     { temp: 'rgb(255, 159, 64)',  humid: 'rgb(75, 192, 192)' }, // Orange / Teal
